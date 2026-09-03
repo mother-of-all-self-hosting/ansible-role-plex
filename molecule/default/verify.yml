@@ -435,13 +435,12 @@
           plex_container_labels_traefik_enabled set to false
         success_msg: "templates/labels.j2 emits no Traefik labels when Traefik is disabled"
 
-    - name: Show what the Plex Molecule run established
+    - name: Show the Plex verification summary
       ansible.builtin.debug:
         msg:
-          - "systemd unit: {{ plex_service.status.ActiveState }} after {{ plex_service.status.NRestarts }} restart(s)"
-          - "running version: {{ plex_reported_version }} (claimed={{ plex_reported_claimed }})"
-          - "pinned plex_version: {{ plex_role_defaults.plex_version }}"
-          - "image: {{ plex_container.Config.Image }}"
-          - "machine identifier, shared by /identity and the role's data path: {{ plex_reported_machine_identifier }}"
-          - "container timezone offset: {{ plex_container_timezone.stdout | trim }}"
-          - "networks: {{ plex_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
+          - "Plex systemd: {{ plex_service.status.ActiveState }} after {{ plex_service.status.NRestarts }} restart(s)"
+          - "Plex version: {{ plex_reported_version }} (claimed={{ plex_reported_claimed }})"
+          - "Plex image: {{ plex_container.Config.Image }}"
+          - "Plex machine identifier, shared by /identity and the role's data path: {{ plex_reported_machine_identifier }}"
+          - "Plex container timezone offset: {{ plex_container_timezone.stdout | trim }}"
+          - "Plex networks: {{ plex_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
