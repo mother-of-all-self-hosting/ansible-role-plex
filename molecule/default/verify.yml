@@ -121,18 +121,14 @@
     # three (1.43.3), so the pinned value is matched as a prefix - with a
     # trailing dot, so that a pinned 1.43.1 could never be satisfied by a
     # running 1.43.10.
-    - name: Assert Plex is running the version defaults/main.yml pins
+    - name: Assert the running Plex is the version this role installs
       ansible.builtin.assert:
         that:
           - >-
             plex_reported_version == plex_role_defaults.plex_version
             or plex_reported_version.startswith(plex_role_defaults.plex_version ~ '.')
-        fail_msg: >-
-          Plex reports version {{ plex_reported_version | default('none') }},
-          which does not match the pinned plex_version {{ plex_role_defaults.plex_version }}
-        success_msg: >-
-          Plex reports version {{ plex_reported_version }},
-          matching the pinned plex_version {{ plex_role_defaults.plex_version }}
+        fail_msg: "Plex reports {{ plex_reported_version | default('none') }}, expected {{ plex_role_defaults.plex_version }}"
+        success_msg: "Plex reports {{ plex_reported_version }}"
 
     - name: Assert the server is unclaimed, as an unattended CI run can only leave it
       ansible.builtin.assert:
