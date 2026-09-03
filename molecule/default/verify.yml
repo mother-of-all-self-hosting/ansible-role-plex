@@ -182,7 +182,7 @@
           - plex_preferences_stat.stat.gid | int == plex_gid | int
         fail_msg: >-
           The preferences file is owned by
-          {{ plex_preferences_stat.stat.uid | default('nothing') }}:{{ plex_preferences_stat.stat.gid | default('nothing') }},
+          {{ plex_preferences_stat.stat.uid | default('none') }}:{{ plex_preferences_stat.stat.gid | default('none') }},
           not by {{ plex_uid }}:{{ plex_gid }}
         success_msg: "Plex wrote its preferences as {{ plex_uid }}:{{ plex_gid }}"
 
