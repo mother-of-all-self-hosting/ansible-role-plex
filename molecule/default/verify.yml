@@ -42,14 +42,13 @@
       {{ plex_molecule_data_path }}/Library/Application Support/Plex Media Server/Preferences.xml
 
   tasks:
-    - name: Read the role's own defaults
-      # Only leaf literals may be read out of this: anything Jinja-derived
-      # cannot resolve here, and anything the scenario tunes must come from
-      # this playbook's own variables instead, because a bare `include_vars`
-      # would outrank the scenario's group_vars.
+    # The role is not included in this playbook, so its defaults are not in
+    # scope. Reading defaults/main.yml directly ties the version assertion
+    # below.
+    - name: Load the role defaults
       ansible.builtin.include_vars:
         file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
-        name: plex_role_defaults
+        name: plex_defaults
 
     - name: Wait for the Plex systemd unit to report itself active
       ansible.builtin.systemd_service:
@@ -125,9 +124,9 @@
       ansible.builtin.assert:
         that:
           - >-
-            plex_reported_version == plex_role_defaults.plex_version
-            or plex_reported_version.startswith(plex_role_defaults.plex_version ~ '.')
-        fail_msg: "Plex reports {{ plex_reported_version | default('none') }}, expected {{ plex_role_defaults.plex_version }}"
+            plex_reported_version == plex_defaults.plex_version
+            or plex_reported_version.startswith(plex_defaults.plex_version ~ '.')
+        fail_msg: "Plex reports {{ plex_reported_version | default('none') }}, expected {{ plex_defaults.plex_version }}"
         success_msg: "Plex reports {{ plex_reported_version }}"
 
     - name: Assert the server is unclaimed, as an unattended CI run can only leave it
@@ -188,7 +187,7 @@
 
     - name: Read the timezone offset inside the Plex container
       ansible.builtin.command:
-        cmd: "docker exec {{ plex_role_defaults.plex_identifier }} date +%z"
+        cmd: "docker exec {{ plex_defaults.plex_identifier }} date +%z"
       register: plex_container_timezone
       changed_when: false
 
@@ -202,7 +201,7 @@
 
     - name: Inspect the Plex container
       ansible.builtin.command:
-        cmd: "docker container inspect {{ plex_role_defaults.plex_identifier }}"
+        cmd: "docker container inspect {{ plex_defaults.plex_identifier }}"
       register: plex_container_inspect
       changed_when: false
 
@@ -215,11 +214,11 @@
         that:
           - >-
             plex_container.Config.Image ==
-            plex_role_defaults.plex_container_image_registry_prefix_upstream_default
-            ~ 'linuxserver/plex:' ~ plex_role_defaults.plex_version
+            plex_defaults.plex_container_image_registry_prefix_upstream_default
+            ~ 'linuxserver/plex:' ~ plex_defaults.plex_version
         fail_msg: >-
           The container runs {{ plex_container.Config.Image }}, not the
-          {{ plex_role_defaults.plex_version }} tag that defaults/main.yml pins
+          {{ plex_defaults.plex_version }} tag that defaults/main.yml pins
         success_msg: "The container runs {{ plex_container.Config.Image }}"
 
     - name: Assert the role's environment reached the container
@@ -228,7 +227,7 @@
           - "'PUID=' ~ plex_uid in plex_container.Config.Env"
           - "'PGID=' ~ plex_gid in plex_container.Config.Env"
           - "'TZ=' ~ plex_timezone in plex_container.Config.Env"
-          - "'VERSION=' ~ plex_role_defaults.plex_version_environment_variable in plex_container.Config.Env"
+          - "'VERSION=' ~ plex_defaults.plex_version_environment_variable in plex_container.Config.Env"
           - "'PLEX_MOLECULE_MARKER=rendered-by-the-role' in plex_container.Config.Env"
           # No claim token was configured, so none may be passed. An empty
           # `PLEX_CLAIM=` is not the same thing as no `PLEX_CLAIM` at all.
@@ -240,13 +239,13 @@
       ansible.builtin.assert:
         that:
           - >-
-            plex_container.NetworkSettings.Ports[plex_role_defaults.plex_container_http_port | string ~ '/tcp']
+            plex_container.NetworkSettings.Ports[plex_defaults.plex_container_http_port | string ~ '/tcp']
             | map(attribute='HostPort') | list == [plex_molecule_http_port]
           - >-
-            plex_container.NetworkSettings.Ports[plex_role_defaults.plex_container_http_port | string ~ '/tcp']
+            plex_container.NetworkSettings.Ports[plex_defaults.plex_container_http_port | string ~ '/tcp']
             | map(attribute='HostIp') | list == ['127.0.0.1']
           - >-
-            plex_container.NetworkSettings.Ports[plex_role_defaults.plex_container_dlna_tcp_port | string ~ '/tcp']
+            plex_container.NetworkSettings.Ports[plex_defaults.plex_container_dlna_tcp_port | string ~ '/tcp']
             | map(attribute='HostPort') | list == [plex_container_dlna_tcp_bind_port.split(':') | last]
           # Nothing asked for the DLNA UDP, Bonjour, Roku or GDM ports to be
           # published, so they must stay as the image exposes them: present in
@@ -257,7 +256,7 @@
           - plex_container.NetworkSettings.Ports['32410/udp'] is none
         fail_msg: "The published ports are not what the role was configured for: {{ plex_container.NetworkSettings.Ports }}"
         success_msg: >-
-          Container port {{ plex_role_defaults.plex_container_http_port }} is published on
+          Container port {{ plex_defaults.plex_container_http_port }} is published on
           {{ plex_container_http_bind_port }}, and no port the role was not asked to publish is
 
     - name: Assert the container filesystem is read-only, with a writable /run
@@ -291,7 +290,7 @@
     - name: Read the marker through the additional volume
       ansible.builtin.command:
         cmd: >-
-          docker exec {{ plex_role_defaults.plex_identifier }}
+          docker exec {{ plex_defaults.plex_identifier }}
           cat {{ plex_molecule_extra_volume_container_path }}/marker
       register: plex_extra_volume_marker
       changed_when: false
@@ -305,7 +304,7 @@
     - name: Assert the container joined both its own network and the additional one
       ansible.builtin.assert:
         that:
-          - plex_role_defaults.plex_identifier in plex_container.NetworkSettings.Networks
+          - plex_defaults.plex_identifier in plex_container.NetworkSettings.Networks
           - plex_molecule_extra_network in plex_container.NetworkSettings.Networks
         fail_msg: >-
           The container is on {{ plex_container.NetworkSettings.Networks.keys() | list }},
@@ -319,7 +318,7 @@
       ansible.builtin.assert:
         that:
           - plex_container.Config.Labels['traefik.enable'] == 'true'
-          - plex_container.Config.Labels['traefik.docker.network'] == plex_role_defaults.plex_identifier
+          - plex_container.Config.Labels['traefik.docker.network'] == plex_defaults.plex_identifier
           - "plex_container.Config.Labels['traefik.http.routers.plex.rule'] == 'Host(`plex.example.com`) && PathPrefix(`/plex`)'"
           - plex_container.Config.Labels['traefik.http.routers.plex.middlewares'] == 'plex-slashless-redirect,plex-strip-prefix'
           - plex_container.Config.Labels['traefik.http.middlewares.plex-slashless-redirect.redirectregex.regex'] == '^(/plex)$'
@@ -328,7 +327,7 @@
           - plex_container.Config.Labels['traefik.http.routers.plex.tls'] == 'true'
           - >-
             plex_container.Config.Labels['traefik.http.services.plex.loadbalancer.server.port']
-            == plex_role_defaults.plex_container_http_port | string
+            == plex_defaults.plex_container_http_port | string
         fail_msg: "The Traefik labels are not what templates/labels.j2 should have produced: {{ plex_container.Config.Labels }}"
         success_msg: "The Traefik labels describe the hostname, path prefix and port the role was given"
 
@@ -342,7 +341,7 @@
 
     - name: Stat the support files the role rendered
       ansible.builtin.stat:
-        path: "/{{ plex_role_defaults.plex_identifier }}/{{ item }}"
+        path: "/{{ plex_defaults.plex_identifier }}/{{ item }}"
       register: plex_support_file_stats
       loop:
         - env
@@ -365,7 +364,7 @@
 
     - name: Read the env file the role rendered
       ansible.builtin.slurp:
-        src: "/{{ plex_role_defaults.plex_identifier }}/env"
+        src: "/{{ plex_defaults.plex_identifier }}/env"
       register: plex_env_file
 
     - name: Assert no claim token is written when none is configured
@@ -388,8 +387,8 @@
         mode: "0600"
       vars:
         plex_claim_token: "{{ plex_molecule_fake_claim_token }}"
-        plex_version_environment_variable: "{{ plex_role_defaults.plex_version_environment_variable }}"
-        plex_nvidia_visible_devices: "{{ plex_role_defaults.plex_nvidia_visible_devices }}"
+        plex_version_environment_variable: "{{ plex_defaults.plex_version_environment_variable }}"
+        plex_nvidia_visible_devices: "{{ plex_defaults.plex_nvidia_visible_devices }}"
       changed_when: false
 
     - name: Read the env file rendered with a claim token configured
