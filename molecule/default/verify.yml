@@ -202,12 +202,12 @@
     - name: Inspect the Plex container
       ansible.builtin.command:
         cmd: "docker container inspect {{ plex_defaults.plex_identifier }}"
-      register: plex_container_inspect
+      register: plex_container_raw
       changed_when: false
 
     - name: Keep the parts of the container definition worth asserting on
       ansible.builtin.set_fact:
-        plex_container: "{{ (plex_container_inspect.stdout | from_json) | first }}"
+        plex_container: "{{ (plex_container_raw.stdout | from_json) | first }}"
 
     - name: Assert the container runs the image tag defaults/main.yml pins
       ansible.builtin.assert:
