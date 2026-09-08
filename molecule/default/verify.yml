@@ -47,19 +47,30 @@
     # below.
     - name: Load the role defaults
       ansible.builtin.include_vars:
-        file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
         name: plex_defaults
 
-    - name: Wait for the Plex systemd unit to report itself active
+    - name: Wait for the Plex systemd service to become active (up to 180s)
       ansible.builtin.systemd_service:
         name: plex.service
       register: plex_service
       until: plex_service.status.ActiveState == 'active'
-      retries: 24
+      retries: 36
       delay: 5
+      # So that giving up is reported by the assertion below rather than as a
+      # wall of systemd unit properties.
       failed_when: false
 
-    - name: Retrieve Plex service log for debugging
+    # `Restart=always` in the systemd unit means that even a container which crashes
+    # and gets restarted reads as active here, so this is a precondition rather than
+    # a result.
+    - name: Assert the Plex systemd service is active
+      ansible.builtin.assert:
+        that: plex_service.status.ActiveState == 'active'
+        fail_msg: "plex.service is not active ({{ plex_service.status.ActiveState }})"
+        success_msg: "plex.service is active"
+
+    - name: Retrieve the Plex systemd service log for debugging
       when: plex_debug_service_enabled | bool
       ansible.builtin.command:
         cmd: journalctl -xeu plex.service
