@@ -42,6 +42,8 @@
       {{ plex_molecule_data_path }}/Library/Application Support/Plex Media Server/Preferences.xml
 
   tasks:
+    - name: Verify that Plex works
+      block:
     # The role is not included in this playbook, so its defaults are not in
     # scope. Reading defaults/main.yml directly ties the version assertion
     # below.
@@ -454,3 +456,19 @@
           - "Plex machine identifier, shared by /identity and the role's data path: {{ plex_reported_machine_identifier }}"
           - "Plex container timezone offset: {{ plex_container_timezone.stdout | trim }}"
           - "Plex networks: {{ plex_container.NetworkSettings.Networks.keys() | list | join(', ') }}"
+
+      rescue:
+        # Whatever went wrong, the reason is almost always in the systemd service log.
+        - name: Retrieve the Plex systemd service log
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=plex.service
+          register: plex_service_log
+          changed_when: false
+
+        - name: Show the Plex systemd service log
+          ansible.builtin.debug:
+            var: plex_service_log.stdout_lines
+
+        - name: Fail because verification did not pass
+          ansible.builtin.fail:
+            msg: "Plex verification failed. The systemd service log is printed above."
