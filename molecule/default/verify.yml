@@ -41,6 +41,9 @@
     plex_molecule_preferences_path: >-
       {{ plex_molecule_data_path }}/Library/Application Support/Plex Media Server/Preferences.xml
 
+    plex_verify_units:
+      - plex.service
+
   tasks:
     - name: Verify that Plex works
       block:
@@ -52,13 +55,14 @@
             file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
             name: plex_defaults
 
-        - name: Wait for the Plex systemd service to become active (up to 180s)
+        - name: Wait for the Plex systemd services to become active (up to 180s each)
           ansible.builtin.systemd_service:
-            name: plex.service
-          register: plex_service
-          until: plex_service.status.ActiveState == 'active'
+            name: "{{ item }}"
+          register: plex_services
+          until: plex_services.status.ActiveState == 'active'
           retries: 36
           delay: 5
+          loop: "{{ plex_verify_units }}"
           # So that giving up is reported by the assertion below rather than as a
           # wall of systemd unit properties.
           failed_when: false
@@ -66,17 +70,20 @@
         # `Restart=always` in the systemd unit means that even a container which crashes
         # and gets restarted reads as active here, so this is a precondition rather than
         # a result.
-        - name: Assert the Plex systemd service is active
+        - name: Assert the Plex systemd services are active
           ansible.builtin.assert:
-            that: plex_service.status.ActiveState == 'active'
-            fail_msg: "plex.service is not active ({{ plex_service.status.ActiveState }})"
-            success_msg: "plex.service is active"
+            that: plex_services.results | map(attribute='status.ActiveState') | unique | list == ['active']
+            fail_msg: >-
+              Not every service is active:
+              {{ dict(plex_verify_units | zip(plex_services.results | map(attribute='status.ActiveState'))) }}
+            success_msg: "Every systemd service is active"
 
-        - name: Retrieve the Plex systemd service log for debugging
+        - name: Retrieve the Plex systemd services log for debugging
           when: plex_debug_service_enabled | bool
           ansible.builtin.command:
-            cmd: journalctl --no-pager --output=cat --unit=plex.service
+            cmd: "journalctl --no-pager --output=cat --unit={{ item }}"
           changed_when: false
+          loop: "{{ plex_verify_units }}"
 
         - name: Assert the Plex systemd unit is active and has not been restarted
           ansible.builtin.assert:
