@@ -1,9 +1,9 @@
 ---
 galaxy_info:
   author: spatterlight
-  company: spatterlight
+  company: mash
   role_name: plex
-  namespace: spatterlight
+  namespace: mash
   description: An Ansible role for installing Plex, a personal media server
   platforms:
     - name: Debian
