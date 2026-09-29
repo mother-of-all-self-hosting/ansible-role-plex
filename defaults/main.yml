@@ -197,6 +197,9 @@ plex_container_labels_additional_labels: "{{ plex_container_labels_additional_la
 plex_container_labels_additional_labels_auto: []
 plex_container_labels_additional_labels_custom: []
 
+# Specify the size of the container's tmpfs volume (/run)
+plex_container_tmpfs_run_size: 128m
+
 # A list of extra arguments to pass to the container (`docker create` command)
 plex_container_extra_arguments: "{{ plex_container_extra_arguments_auto + plex_container_extra_arguments_custom }}"
 plex_container_extra_arguments_auto: []
