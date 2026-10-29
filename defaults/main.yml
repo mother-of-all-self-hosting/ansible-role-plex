@@ -33,7 +33,7 @@ plex_gpu_path: "/dev/dri"
 plex_gpu_bind_path: ""
 
 # renovate: datasource=docker depName=ghcr.io/linuxserver/plex versioning=semver
-plex_version: 1.43.4
+plex_version: 1.43.5
 plex_arch: amd64
 
 plex_uid: ""
