@@ -28,7 +28,6 @@
   with_items:
     - plex_uid
     - plex_gid
-    - plex_hostname
 
 - name: Fail if Plex architecture is not supported
   ansible.builtin.fail:
